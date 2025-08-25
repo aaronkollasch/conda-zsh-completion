@@ -188,11 +188,11 @@ local state line context
 local -A opt_args
 
 __conda_envs(){
-    local -a envs unnamed sort globalfirst localenvs globalenvs
+    local -a envs envs_dirs unnamed sort
     local -a conda_path
     local -a ls_opts
     local -a describe_opts
-    local localenvspath
+    local localenvspath envspath
     # only parse environments.txt (including unnamed envs) if asked by the user
     zstyle -s ":conda_zsh_completion:*" show-unnamed unnamed
     zstyle -s ":conda_zsh_completion:*" sort-envs-by-time sort
@@ -210,12 +210,13 @@ __conda_envs(){
     if [[ ${${conda_exec}#*"homebrew"} != ${conda_exec} ]]; then
         conda_path="/opt/homebrew/Caskroom/miniconda/base/envs"
     else
-        conda_path="${${CONDA_EXE}%bin/conda}/envs"
+        conda_path="${${CONDA_EXE}%/bin/conda}/envs"
     fi
 
-    # global envs (if exists) and base env.
-    globalenvs=($([[ -d "${conda_path}" ]] && ls $ls_opts ${conda_path}))
-    globalenvs+=("base")
+    if (( ${+_CONDA_ENVS_DIRS} == 0 )); then
+        _CONDA_ENVS_DIRS=("$conda_path" $(conda config --get envs_dirs | cut -d' ' -f3 | sed -e "s/^'//" -e "s/'$//"))
+        typeset -g _CONDA_ENVS_DIRS=(${(Oa)_CONDA_ENVS_DIRS}) # conda config outputs envs dirs in reverse order
+    fi
 
     # local envs (if exists).
     if [[ -n "$CONDA_ENVS_PATH" ]]; then
@@ -225,20 +226,28 @@ __conda_envs(){
     else
         localenvspath="${HOME:?}/.conda/envs"
     fi
-    localenvs=($([[ -d "$localenvspath" ]] && ls $ls_opts "$localenvspath"))
 
     if test -n "$globalfirst"; then
-        envs=($globalenvs $localenvs)
+        envs_dirs=("${_CONDA_ENVS_DIRS[@]}" "$localenvspath")
     else
-        envs=($localenvs $globalenvs)
+        envs_dirs=("$localenvspath" "${_CONDA_ENVS_DIRS[@]}")
     fi
 
-    # unmaned envs (if show-unammed).
+    envs=()
+    for envspath in "${envs_dirs[@]}"; do
+        envs=($([[ -d $envspath ]] && ls $ls_opts $envspath))
+        if (( ${#envs[@]} > 0 )); then
+            _describe $describe_opts -t "$envspath envs" "$envspath environments" envs
+        fi
+    done
+    envs=("base")
+    _describe $describe_opts -t "base env" "base environment" envs
+
+    # unnamed envs (if show-unnamed).
     if test -n "$unnamed"; then
-        envs+=($( (cat ${HOME:?}/.conda/environments.txt) 2>/dev/null | cut -f1 -d' ' | sed -e "s|^${PWD}|.|" | sed -e "s|^$localenvspath/||"))
+        envs=($( (cat ${HOME:?}/.conda/environments.txt) 2>/dev/null | cut -f1 -d' ' | sed -e "s|^${PWD}|.|" | sed -e "s|^$localenvspath/||"))
+        _describe $describe_opts -t "unnamed envs" "unnamed environments" envs
     fi
-
-    _describe $describe_opts -t envs 'conda environments' envs
 }
 
 __conda_packages_installed(){
