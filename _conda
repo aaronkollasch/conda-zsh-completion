@@ -250,6 +250,11 @@ __conda_envs(){
     fi
 }
 
+__conda_envs_paths() {
+    (( $words[(I)*(.|/)*] )) &&
+        _directories
+}
+
 __conda_packages_installed(){
     local -a installed_packages option environment additional_message
     # check for command line overrides
@@ -779,7 +784,7 @@ case $state in
     (activate)
             _arguments -C $help_opts \
                           '--stack[activate this environment on top of the previous environment]' \
-                          '*:environment:{__conda_envs; _directories}'
+                          '*:environment:{__conda_envs; __conda_envs_paths}'
                     ;;
     (deactivate)
             _arguments -C $help_opts \
