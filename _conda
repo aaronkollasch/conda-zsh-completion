@@ -188,7 +188,7 @@ local state line context
 local -A opt_args
 
 __conda_envs(){
-    local -a envs envs_dirs unnamed sort
+    local -a envs envs_dirs conda_envs_dirs unnamed sort
     local -a conda_path
     local -a ls_opts
     local -a describe_opts
@@ -204,18 +204,22 @@ __conda_envs(){
         describe_opts+=("-V")
     fi
 
-    conda_exec=$(which conda)
+    local comp_cachename=conda_envs_dirs
+    if _cache_invalid $comp_cachename || ! _retrieve_cache $comp_cachename; then
+        # Detect homebrew installations and set path accordingly.
+        local conda_exec=$(which conda)
+        if [[ ${${conda_exec}#*"homebrew"} != ${conda_exec} ]]; then
+            conda_path="/opt/homebrew/Caskroom/miniconda/base/envs"
+        else
+            conda_path="${${CONDA_EXE}%/bin/conda}/envs"
+        fi
 
-    # Detect homebrew installations and set path accordingly.
-    if [[ ${${conda_exec}#*"homebrew"} != ${conda_exec} ]]; then
-        conda_path="/opt/homebrew/Caskroom/miniconda/base/envs"
-    else
-        conda_path="${${CONDA_EXE}%/bin/conda}/envs"
-    fi
-
-    if (( ${+_CONDA_ENVS_DIRS} == 0 )); then
-        _CONDA_ENVS_DIRS=("$conda_path" $(conda config --get envs_dirs | cut -d' ' -f3 | sed -e "s/^'//" -e "s/'$//"))
-        typeset -g _CONDA_ENVS_DIRS=(${(Oa)_CONDA_ENVS_DIRS}) # conda config outputs envs dirs in reverse order
+        conda_envs_dirs=($(conda config --get envs_dirs | cut -d' ' -f3 | sed -e "s/^'//" -e "s/'$//"))
+        if (( $conda_envs_dirs[(Ie)$conda_path] == 0 )); then
+            conda_envs_dirs+=("$conda_path")
+        fi
+        conda_envs_dirs=(${(Oa)conda_envs_dirs}) # conda config outputs envs dirs in reverse order
+        _store_cache $comp_cachename conda_envs_dirs
     fi
 
     # local envs (if exists).
@@ -227,10 +231,12 @@ __conda_envs(){
         localenvspath="${HOME:?}/.conda/envs"
     fi
 
-    if test -n "$globalfirst"; then
-        envs_dirs=("${_CONDA_ENVS_DIRS[@]}" "$localenvspath")
+    if (( $conda_envs_dirs[(Ie)$localenvspath] )); then
+        :  # no need to add localenvspath twice
+    elif test -n "$globalfirst"; then
+        envs_dirs=("${conda_envs_dirs[@]}" "$localenvspath")
     else
-        envs_dirs=("$localenvspath" "${_CONDA_ENVS_DIRS[@]}")
+        envs_dirs=("$localenvspath" "${conda_envs_dirs[@]}")
     fi
 
     envs=()
