@@ -188,6 +188,7 @@ local state line context
 local -A opt_args
 
 __conda_envs(){
+    zstyle ":completion:${curcontext}:" cache-policy __conda_caching_policy
     local -a envs envs_dirs conda_envs_dirs unnamed sort
     local -a conda_path
     local -a ls_opts
@@ -491,9 +492,20 @@ __conda_commands(){
 }
 
 __conda_caching_policy() {
-  local -a oldp
-  oldp=( "$1"(Nmh+12) ) # 12 hour
-  (( $#oldp ))
+    local -a oldp
+    if [[ "${1:t}" == conda_envs_dirs ]]; then
+        # compare cache to condarc files, for more paths see:
+        # https://docs.conda.io/projects/conda/en/latest/user-guide/configuration/use-condarc.html#searching-for-condarc
+        # invalidate cache if any condarc file is newer than the cache; invalidate after 1 week otherwise
+        [[ -f "${HOME:?}/.condarc" && "${HOME:?}/.condarc" -nt "$1" ]] && return 0
+        [[ -f "${XDG_CONFIG_HOME:=${HOME:?}/.config}/conda/condarc" && "${XDG_CONFIG_HOME:=${HOME:?}/.config}/conda/condarc" -nt "$1" ]] && return 0
+        [[ -f "${HOME:?}/.conda/condarc" && "${HOME:?}/.conda/condarc" -nt "$1" ]] && return 0
+        oldp=( "$1"(Nm+7) ) # 1 week
+        (( $#lip ))
+        return $?
+    fi
+    oldp=( "$1"(Nmh+12) ) # 12 hour
+    (( $#oldp ))
 }
 
 local -a opts help_opts json_opts env_opts channel_opts install_opts
