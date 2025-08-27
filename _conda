@@ -257,7 +257,7 @@ __conda_envs(){
 }
 
 __conda_envs_paths() {
-    (( $words[(I)*(.|/)*] )) &&
+    [[ $PREFIX = (.|/)* ]] &&
         _directories
 }
 
