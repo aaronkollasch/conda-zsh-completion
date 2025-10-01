@@ -5,5 +5,5 @@ Please see the top of the ``_conda`` file for more info.
 
 :License: |license|
 
-.. |license| image:: http://www.wtfpl.net/wp-content/uploads/2012/12/wtfpl-badge-4.png
-        :target: http://www.wtfpl.net/
+` BSD-3-Clause <https://opensource.org/license/BSD-3-clause>`_
+
